@@ -34,22 +34,29 @@ function isInsideFence(offset: number, fenceSpans: { start: number; end: number 
   return false;
 }
 
-function addSpan(spans: TableSpan[], start: number, end: number) {
-  if (spans.length > 0) {
-    const last = spans[spans.length - 1];
-    if (last && start <= last.end) {
-      last.end = Math.max(last.end, end);
-      return;
+function mergeSpans(candidates: TableSpan[]): TableSpan[] {
+  if (candidates.length === 0) {
+    return [];
+  }
+  const sorted = candidates.toSorted((a, b) => a.start - b.start);
+  const merged: TableSpan[] = [{ start: sorted[0].start, end: sorted[0].end }];
+  for (let i = 1; i < sorted.length; i++) {
+    const last = merged[merged.length - 1];
+    const cur = sorted[i];
+    if (cur.start <= last.end) {
+      last.end = Math.max(last.end, cur.end);
+    } else {
+      merged.push({ start: cur.start, end: cur.end });
     }
   }
-  spans.push({ start, end });
+  return merged;
 }
 
 export function parseTableSpans(
   buffer: string,
   fenceSpans: { start: number; end: number }[] = [],
 ): TableSpan[] {
-  const spans: TableSpan[] = [];
+  const candidates: TableSpan[] = [];
   const lines = buildLineIndex(buffer);
 
   const firstLevelUsed = new Set<number>();
@@ -87,7 +94,7 @@ export function parseTableSpans(
       firstLevelUsed.add(k);
     }
 
-    addSpan(spans, lines[headerStart].start, lines[bodyEnd].end);
+    candidates.push({ start: lines[headerStart].start, end: lines[bodyEnd].end });
     i = bodyEnd;
   }
 
@@ -122,12 +129,12 @@ export function parseTableSpans(
       for (let k = i; k <= groupEnd; k++) {
         firstLevelUsed.add(k);
       }
-      addSpan(spans, lines[i].start, lines[groupEnd].end);
+      candidates.push({ start: lines[i].start, end: lines[groupEnd].end });
       i = groupEnd;
     }
   }
 
-  return spans;
+  return mergeSpans(candidates);
 }
 
 function buildLineIndex(buffer: string): Array<{ start: number; end: number; text: string }> {

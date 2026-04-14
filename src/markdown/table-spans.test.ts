@@ -174,5 +174,18 @@ describe("parseTableSpans", () => {
       expect(spans).toHaveLength(1);
       expect(spans[0]).toEqual({ start: 0, end: text.length });
     });
+
+    it("detects level-2 table before level-1 table (addSpan ordering bug)", () => {
+      const level2 = ["| a | b |", "| c | d |"].join("\n");
+      const gap = "\n\nSome text.\n\n";
+      const level1 = ["| H1 | H2 |", "|----|----|", "| v1 | v2 |"].join("\n");
+      const text = level2 + gap + level1;
+
+      const spans = spansOf(text);
+      expect(spans).toHaveLength(2);
+      expect(spans[0]?.start).toBe(0);
+      expect(spans[0]?.end).toBe(level2.length);
+      expect(spans[1]?.start).toBe(level2.length + gap.length);
+    });
   });
 });
